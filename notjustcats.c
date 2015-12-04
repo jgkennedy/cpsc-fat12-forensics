@@ -28,11 +28,11 @@ unsigned short next_fat_cluster(unsigned short cluster) {
 	if (cluster % 2 == 0) {
 		// cluster is even, read lower 12 bits of number
 		next_cluster = (0x000FFF & chunk);
-		printf("next cluster is %x (%d)\n", next_cluster, next_cluster);
+		// printf("next cluster is %x (%d)\n", next_cluster, next_cluster);
 	} else {
 		// cluster is odd, read upper 12 bits of number
 		next_cluster = ((0xFFF000 & chunk) >> 12);
-		printf("next cluster is %x (%d)\n", next_cluster, next_cluster);
+		// printf("next cluster is %x (%d)\n", next_cluster, next_cluster);
 	}
 
 	return next_cluster;
@@ -41,7 +41,7 @@ unsigned short next_fat_cluster(unsigned short cluster) {
 // entries are 32B
 // clusters are 512B (enough to hold 16 directory entries)
 void traverse_directory(unsigned long start, char *dir) {
-	printf("traversing 0x%lx\n", start);
+	// printf("traversing 0x%lx\n", start);
 
 	for (unsigned long offset = start; offset <= start + 512; offset += 32) {
 		// No more valid entries in the table
@@ -89,7 +89,7 @@ void traverse_directory(unsigned long start, char *dir) {
 		} else {
 			char filename_out[11];
 			sprintf(filename_out, "file%d.%s", filenum++, extension);
-			printf("File Out: %s\n", filename_out);
+			// printf("File Out: %s\n", filename_out);
 
 			if ((fdout = open(filename_out, O_WRONLY | O_CREAT)) < 0) {
 				printf("Can't open %s for writing", filename_out);
@@ -101,12 +101,14 @@ void traverse_directory(unsigned long start, char *dir) {
 				printf("DELETED");
 			else
 				printf("NORMAL");
-			printf("\t%s%s.%s\t%lu\t%hu\n", dir, filename, extension, size, cluster);
-			printf("finding next cluster for %d\n", cluster);
+			printf("\t%s%s.%s\t%lu\n", dir, filename, extension, size);
+			// printf("finding next cluster for %d\n", cluster);
 
 			if (cluster >= 0x002) {
 				do {
-					write(fdout, &file[cluster2offset(cluster)], 512);
+					unsigned long size2write = size >= 512 ? 512 : size;
+					write(fdout, &file[cluster2offset(cluster)], size2write);
+					size -= size2write;
 					cluster = next_fat_cluster(cluster);
 				}
 				while (cluster >= 0x002 && !(cluster >= 0xFF8 && cluster <= 0xFFF));
