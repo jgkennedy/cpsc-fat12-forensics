@@ -11,7 +11,7 @@
 
 #define FLOPPYSIZE 1474560
 
-int fdin; //, fdout;
+int fdin, fdout;
 char *file;
 int filenum = 0;
 
@@ -19,22 +19,20 @@ unsigned long cluster2offset(unsigned short cluster) {
 	return (cluster + 31) * 512;
 }
 
-unsigned long next_fat_cluster(int cluster) {
+unsigned short next_fat_cluster(unsigned short cluster) {
 	unsigned long offset = 0x200 + (cluster/2)*3;
 	unsigned long chunk = 0;
 	memcpy(&chunk, &file[offset], 3);
-	unsigned long next_cluster = 0;
-
-	printf("chunk is %lx\n", chunk);
+	unsigned short next_cluster = 0;
 
 	if (cluster % 2 == 0) {
-		// cluster is even
+		// cluster is even, read lower 12 bits of number
 		next_cluster = (0x000FFF & chunk);
-		printf("next cluster is %lx (%ld)\n", next_cluster, next_cluster);
+		printf("next cluster is %x (%d)\n", next_cluster, next_cluster);
 	} else {
-		// cluster is odd
+		// cluster is odd, read upper 12 bits of number
 		next_cluster = ((0xFFF000 & chunk) >> 12);
-		printf("next cluster is %lx (%ld)\n", next_cluster, next_cluster);
+		printf("next cluster is %x (%d)\n", next_cluster, next_cluster);
 	}
 
 	return next_cluster;
@@ -93,10 +91,10 @@ void traverse_directory(unsigned long start, char *dir) {
 			sprintf(filename_out, "file%d.%s", filenum++, extension);
 			printf("File Out: %s\n", filename_out);
 
-			// if ((fdin = open(argv[1], O_RDONLY)) < 0) {
-			// 	printf("Can't open %s for reading", argv[1]);
-			// 	return 1;
-			// }
+			if ((fdout = open(filename_out, O_WRONLY | O_CREAT)) < 0) {
+				printf("Can't open %s for writing", filename_out);
+				exit(1);
+			}
 
 			printf("FILE\t");
 			if (deleted)
@@ -105,18 +103,32 @@ void traverse_directory(unsigned long start, char *dir) {
 				printf("NORMAL");
 			printf("\t%s%s.%s\t%lu\t%hu\n", dir, filename, extension, size, cluster);
 			printf("finding next cluster for %d\n", cluster);
-			read_fat_entry(cluster);
+
+			if (cluster >= 0x002) {
+				do {
+					write(fdout, &file[cluster2offset(cluster)], 512);
+					cluster = next_fat_cluster(cluster);
+				}
+				while (cluster >= 0x002 && !(cluster >= 0xFF8 && cluster <= 0xFFF));
+			}
+			close(fdout);
 		}
 	}
 }
 
 int main(int argc, char *argv[]) {
 	if ((fdin = open(argv[1], O_RDONLY)) < 0) {
-		printf("Can't open %s for reading", argv[1]);
+		printf("Can't open %s for reading\n", argv[1]);
 		return 1;
 	}
 
 	file = mmap(0, FLOPPYSIZE, PROT_READ, MAP_PRIVATE | MAP_FILE, fdin, 0);
+
+	// Change to output directory
+	if (chdir(argv[2]) != 0) {
+		printf("Can't change directory to %s\n", argv[2]);
+		return 1;
+	}
 
 	// Start traversing from the root directory
 	for (int i = 0; i < 14; i++) {
