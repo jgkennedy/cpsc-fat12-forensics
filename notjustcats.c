@@ -19,6 +19,26 @@ unsigned long cluster2offset(unsigned short cluster) {
 	return (cluster + 31) * 512;
 }
 
+int *read_fat_entry(int entry) {
+	unsigned short offset = 0x200 + (entry/2)*3;
+	unsigned long chunk = 0;
+	memcpy(&chunk, &file[offset], 3);
+	unsigned long next_entry = 0;
+
+	printf("chunk is %lx\n", chunk);
+
+	if (entry % 2 == 0) {
+		// Entry is even
+		next_entry = (0x000FFF & chunk);
+		printf("next entry is %lx (%ld)\n", next_entry, next_entry);
+	} else {
+		// Entry is odd
+		next_entry = ((0xFFF000 & chunk) >> 12);
+		printf("next entry is %lx (%ld)\n", next_entry, next_entry);
+	}
+	return NULL;
+}
+
 // entries are 32B
 // clusters are 512B (enough to hold 16 directory entries)
 void traverse_directory(unsigned long start, char *dir) {
@@ -83,6 +103,8 @@ void traverse_directory(unsigned long start, char *dir) {
 			else
 				printf("NORMAL");
 			printf("\t%s%s.%s\t%lu\t%hu\n", dir, filename, extension, size, cluster);
+			printf("finding next cluster for %d\n", cluster);
+			read_fat_entry(cluster);
 		}
 	}
 }
