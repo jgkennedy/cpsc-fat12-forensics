@@ -19,24 +19,25 @@ unsigned long cluster2offset(unsigned short cluster) {
 	return (cluster + 31) * 512;
 }
 
-int *read_fat_entry(int entry) {
-	unsigned short offset = 0x200 + (entry/2)*3;
+unsigned long next_fat_cluster(int cluster) {
+	unsigned long offset = 0x200 + (cluster/2)*3;
 	unsigned long chunk = 0;
 	memcpy(&chunk, &file[offset], 3);
-	unsigned long next_entry = 0;
+	unsigned long next_cluster = 0;
 
 	printf("chunk is %lx\n", chunk);
 
-	if (entry % 2 == 0) {
-		// Entry is even
-		next_entry = (0x000FFF & chunk);
-		printf("next entry is %lx (%ld)\n", next_entry, next_entry);
+	if (cluster % 2 == 0) {
+		// cluster is even
+		next_cluster = (0x000FFF & chunk);
+		printf("next cluster is %lx (%ld)\n", next_cluster, next_cluster);
 	} else {
-		// Entry is odd
-		next_entry = ((0xFFF000 & chunk) >> 12);
-		printf("next entry is %lx (%ld)\n", next_entry, next_entry);
+		// cluster is odd
+		next_cluster = ((0xFFF000 & chunk) >> 12);
+		printf("next cluster is %lx (%ld)\n", next_cluster, next_cluster);
 	}
-	return NULL;
+
+	return next_cluster;
 }
 
 // entries are 32B
