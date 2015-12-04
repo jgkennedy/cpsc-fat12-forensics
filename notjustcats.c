@@ -13,6 +13,7 @@
 
 int fdin; //, fdout;
 char *file;
+int filenum = 0;
 
 unsigned long cluster2offset(unsigned short cluster) {
 	return (cluster + 31) * 512;
@@ -20,8 +21,9 @@ unsigned long cluster2offset(unsigned short cluster) {
 
 // entries are 32B
 // clusters are 512B (enough to hold 16 directory entries)
-void traverse_directory(unsigned long start) {
+void traverse_directory(unsigned long start, char *dir) {
 	printf("traversing 0x%lx\n", start);
+
 	for (unsigned long offset = start; offset <= start + 512; offset += 32) {
 		// No more valid entries in the table
 		if (file[offset] == 0)
@@ -30,38 +32,57 @@ void traverse_directory(unsigned long start) {
 		unsigned short cluster;
 		memcpy(&cluster, &file[offset+26], 2);
 
-		// Check if entry is a directory
+		unsigned long size = 0;
+		memcpy(&size, &file[offset+28], 4);
+
+		int deleted = 0;
+		char filename[9];
+		char extension[4];
+		memset(filename, 0, sizeof filename);
+		memset(extension, 0, sizeof extension);
+		int position = 0, extposition = 0;
+
+		for (int i = 0; i < 8; i++) {
+			if (file[offset+i] == '\xE5') {
+				deleted = 1;
+				filename[position++] = '_';
+			} else if (file[offset+i] != '\x20') {
+				filename[position++] = file[offset+i];
+			}
+		}
+
+		for (int i = 8; i < 12; i++) {
+			if (file[offset+i] != '\x20') {
+				extension[extposition++] = file[offset+i];
+			}
+		}
+
+		// Check if entry is a directory (check 4th bit in 11th byte)
 		if ((file[offset+11] >> 4) & 1) {
 			// Don't traverse dot directories
-			if (file[offset] != '.')
-				traverse_directory(cluster2offset(cluster));
-		} else {
-			int deleted = 0;
-			char filename[12]; // 8 bytes for filename, 3 for ext, 1 for \0
-			memset(filename, 0, sizeof filename);
-
-			int position = 0;
-			for (int i = 0; i < 11; i++) {
-				if (i == 8) {
-					filename[position++] = '.';
-				}
-				if (file[offset+i] == '\xE5') {
-					deleted = 1;
-					filename[position++] = '_';
-				} else if (file[offset+i] != '\x20') {
-					filename[position++] = file[offset+i];
-				}
-
+			if (file[offset] != '.') {
+				char new_dir[strlen(dir)+14];
+				strcpy(new_dir, dir);
+				strcat(new_dir, filename);
+				strcat(new_dir, "/");
+				traverse_directory(cluster2offset(cluster), new_dir);
 			}
+		} else {
+			char filename_out[11];
+			sprintf(filename_out, "file%d.%s", filenum++, extension);
+			printf("File Out: %s\n", filename_out);
 
-			unsigned long size;
-			memcpy(&size, &file[offset+28], 4);
+			// if ((fdin = open(argv[1], O_RDONLY)) < 0) {
+			// 	printf("Can't open %s for reading", argv[1]);
+			// 	return 1;
+			// }
 
-			printf("\nFilename: %s\n", filename);
-			printf("Cluster: %hu\n", cluster);
-			printf("Size: %lu\n", size);
+			printf("FILE\t");
 			if (deleted)
-				printf("DELETED\n");
+				printf("DELETED");
+			else
+				printf("NORMAL");
+			printf("\t%s%s.%s\t%lu\t%hu\n", dir, filename, extension, size, cluster);
 		}
 	}
 }
@@ -76,6 +97,6 @@ int main(int argc, char *argv[]) {
 
 	// Start traversing from the root directory
 	for (int i = 0; i < 14; i++) {
-		traverse_directory(0x2600 + 512*i);
+		traverse_directory(0x2600 + 512*i, "/");
 	}
 }
