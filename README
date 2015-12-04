@@ -1,8 +1,12 @@
 Jesse Kennedy / Jeremy Wilder
 CPSC3220 - Project 4
 
-KNOWN ISSUES
-
-
-
 DESIGN
+
+We decided to use code to solve the problem. Worked pretty well
+Open the fat, iterate through the directory to find the files. If they had been,
+they were recovered.
+
+KNOWN ISSUES
+You need to give open() permissions otherwise the crazy default will try to ruin
+your project.. But that was fixed
