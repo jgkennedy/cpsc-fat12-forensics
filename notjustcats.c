@@ -44,7 +44,7 @@ unsigned short next_fat_cluster(unsigned short cluster, int deleted) {
 
 	if (deleted && next_cluster != 0x000)
 		return 0x000;
-	
+
 	return next_cluster;
 }
 
@@ -101,7 +101,7 @@ void traverse_directory(unsigned long start, char *dir) {
 			sprintf(filename_out, "file%d.%s", filenum++, extension);
 			// printf("File Out: %s\n", filename_out);
 
-			if ((fdout = open(filename_out, O_WRONLY | O_CREAT)) < 0) {
+			if ((fdout = open(filename_out, O_WRONLY | O_CREAT | O_TRUNC, 0777)) < 0) {
 				printf("Can't open %s for writing", filename_out);
 				exit(1);
 			}
