@@ -19,7 +19,14 @@ unsigned long cluster2offset(unsigned short cluster) {
 	return (cluster + 31) * 512;
 }
 
-unsigned short next_fat_cluster(unsigned short cluster) {
+unsigned short next_fat_cluster(unsigned short cluster, int deleted) {
+	if (cluster < 0x002 || cluster >= 0xFF0)
+		return 0x000;
+
+	if (deleted) {
+		cluster++;
+	}
+
 	unsigned long offset = 0x200 + (cluster/2)*3;
 	unsigned long chunk = 0;
 	memcpy(&chunk, &file[offset], 3);
@@ -35,6 +42,9 @@ unsigned short next_fat_cluster(unsigned short cluster) {
 		// printf("next cluster is %x (%d)\n", next_cluster, next_cluster);
 	}
 
+	if (deleted && next_cluster != 0x000)
+		return 0x000;
+	
 	return next_cluster;
 }
 
@@ -104,14 +114,11 @@ void traverse_directory(unsigned long start, char *dir) {
 			printf("\t%s%s.%s\t%lu\n", dir, filename, extension, size);
 			// printf("finding next cluster for %d\n", cluster);
 
-			if (cluster >= 0x002) {
-				do {
-					unsigned long size2write = size >= 512 ? 512 : size;
-					write(fdout, &file[cluster2offset(cluster)], size2write);
-					size -= size2write;
-					cluster = next_fat_cluster(cluster);
-				}
-				while (cluster >= 0x002 && !(cluster >= 0xFF8 && cluster <= 0xFFF));
+			while (cluster >= 0x002) {
+				unsigned long size2write = size >= 512 ? 512 : size;
+				write(fdout, &file[cluster2offset(cluster)], size2write);
+				size -= size2write;
+				cluster = next_fat_cluster(cluster, deleted);
 			}
 			close(fdout);
 		}
