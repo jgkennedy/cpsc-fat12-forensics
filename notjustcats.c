@@ -1,5 +1,5 @@
 // Jeremy Wilder / Jesse Kennedy
-// CPSC 322 - Prog 4
+// Operating Systems Project
 
 #include <stdlib.h>
 #include <string.h>
